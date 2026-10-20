@@ -1,0 +1,80 @@
+version: "3.9"
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: ust-warehouse-mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    restart: unless-stopped
+
+  # Optional local AI assistant for the chat widget. Not required - the
+  # backend degrades gracefully (chat just reports modelReachable=false)
+  # if this isn't running. Comment out to skip it entirely.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ust-warehouse-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+    # First time only: docker exec -it ust-warehouse-ollama ollama pull qwen3:1.7b
+
+  backend:
+    build: ./backend
+    container_name: ust-warehouse-backend
+    depends_on:
+      - mosquitto
+    ports:
+      - "8000:8000"
+    environment:
+      MODE: mock
+      DATABASE_URL: sqlite:////data/smart_warehouse.db
+      MQTT_ENABLED: "true"
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 1883
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: qwen3:1.7b
+      CORS_ORIGINS: "http://localhost:5173"
+    volumes:
+      - backend-data:/data
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: ust-warehouse-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_BACKEND_URL: http://backend:8000
+    restart: unless-stopped
+
+  # Optional: swap SQLite for Postgres. Enable with:
+  #   docker compose --profile postgres up
+  # ...and point the backend's DATABASE_URL at it:
+  #   postgresql+psycopg2://warehouse:warehouse@postgres:5432/warehouse
+  postgres:
+    image: postgres:16-alpine
+    container_name: ust-warehouse-postgres
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: warehouse
+      POSTGRES_PASSWORD: warehouse
+      POSTGRES_DB: warehouse
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  mosquitto-data:
+  ollama-data:
+  backend-data:
+  postgres-data:

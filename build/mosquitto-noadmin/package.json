@@ -1,0 +1,12 @@
+{
+  "name": "local-mqtt-broker",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A tiny local MQTT broker for dev use, for machines where the Mosquitto installer needs admin rights you don't have. Runs entirely as a user-level Node process - same role as mosquitto.exe, just pure JavaScript instead of a native binary.",
+  "scripts": {
+    "start": "node broker.js"
+  },
+  "dependencies": {
+    "aedes": "^0.51.0"
+  }
+}
