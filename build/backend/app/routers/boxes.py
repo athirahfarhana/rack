@@ -227,7 +227,7 @@ def box_history(box_id: str, db: Session = Depends(get_db)):
 
 @router.get("/{box_id}", response_model=schemas.BoxLocationOut)
 def get_box(box_id: str, db: Session = Depends(get_db)):
-    box = db.query(models.Box).filter(models.Box.id == box_id).first()
+    box = services.find_box(db, box_id)
     if not box:
         raise HTTPException(404, f"Box '{box_id}' not found")
     return _box_location(db, box)
